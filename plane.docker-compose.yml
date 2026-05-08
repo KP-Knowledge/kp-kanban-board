@@ -26,13 +26,7 @@ x-aws-s3-env: &aws-s3-env
 x-proxy-env: &proxy-env
   APP_DOMAIN: ${APP_DOMAIN:-localhost}
   FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
-  CERT_EMAIL: ${CERT_EMAIL}
-  CERT_ACME_CA: ${CERT_ACME_CA}
-  CERT_ACME_DNS: ${CERT_ACME_DNS}
-  LISTEN_HTTP_PORT: ${LISTEN_HTTP_PORT:-80}
-  LISTEN_HTTPS_PORT: ${LISTEN_HTTPS_PORT:-443}
   BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
-  SITE_ADDRESS: ${SITE_ADDRESS:-:80}
 
 x-mq-env: &mq-env
   RABBITMQ_HOST: ${RABBITMQ_HOST:-plane-mq}
@@ -60,9 +54,13 @@ x-app-env: &app-env
   LIVE_SERVER_SECRET_KEY: ${LIVE_SERVER_SECRET_KEY:-2FiJk1U2aiVPEQtzLehYGlTSnTnrs7LW}
 
 services:
+  # Plane proxy is disabled — Dokploy/Traefik handles reverse proxy on port 80/443.
+  # The web service is exposed on port 3000 for Dokploy to route traffic.
   web:
     image: makeplane/plane-frontend:${APP_RELEASE:-stable}
     restart: always
+    ports:
+      - "3000:3000"
     depends_on:
       - api
       - worker
@@ -178,30 +176,9 @@ services:
     volumes:
       - uploads:/export
 
-  # Comment this if you already have a reverse proxy running
-  proxy:
-    image: makeplane/plane-proxy:${APP_RELEASE:-stable}
-    restart: always
-    environment:
-      <<: *proxy-env
-    ports:
-      - target: 80
-        published: ${LISTEN_HTTP_PORT:-80}
-        protocol: tcp
-        mode: host
-      - target: 443
-        published: ${LISTEN_HTTPS_PORT:-443}
-        protocol: tcp
-        mode: host
-    volumes:
-      - proxy_config:/config
-      - proxy_data:/data
-    depends_on:
-      - web
-      - api
-      - space
-      - admin
-      - live
+  # Plane's built-in proxy is disabled since Dokploy (Traefik) already handles port 80/443.
+  # proxy:
+  #   image: makeplane/plane-proxy:${APP_RELEASE:-stable}
 
 volumes:
   pgdata:
@@ -212,5 +189,3 @@ volumes:
   logs_beat-worker:
   logs_migrator:
   rabbitmq_data:
-  proxy_config:
-  proxy_data:
